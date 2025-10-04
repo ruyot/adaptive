@@ -1,4 +1,4 @@
-# CodeViz3D
+# Adaptive
 
 **Interactive 3D Codebase Visualization with AI-Powered Navigation**
 
@@ -155,8 +155,8 @@ User Query → AI Processing → Vector Search → File Retrieval → Code Highl
 
 1. **Clone and Install**
    ```bash
-   git clone https://github.com/your-org/codeviz3d.git
-   cd codeviz3d
+   git clone https://github.com/your-org/adaptive.git
+   cd adaptive
    npm install
    ```
 
@@ -208,8 +208,8 @@ User Query → AI Processing → Vector Search → File Retrieval → Code Highl
 
 1. **Clone Repository**
    ```bash
-   git clone https://github.com/your-org/codeviz3d.git
-   cd codeviz3d
+   git clone https://github.com/your-org/adaptive.git
+   cd adaptive
    ```
 
 2. **Install Dependencies**
@@ -227,7 +227,7 @@ User Query → AI Processing → Vector Search → File Retrieval → Code Highl
 3. **Database Setup**
    ```bash
    # Create PostgreSQL database
-   createdb codeviz3d
+   createdb adaptive
    
    # Run migrations
    npm run migrate
@@ -582,14 +582,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **GitHub**: Platform for collaboration and webhooks
 
 ### Citation
-If you use CodeViz3D in your research or projects, please cite:
+If you use Adaptive in your research or projects, please cite:
 
 ```bibtex
-@software{codeviz3d2024,
-  title={CodeViz3D: Interactive 3D Codebase Visualization with AI-Powered Navigation},
+@software{adaptive2024,
+  title={Adaptive: Interactive 3D Codebase Visualization with AI-Powered Navigation},
   author={Your Name},
   year={2024},
-  url={https://github.com/your-org/codeviz3d}
+  url={https://github.com/your-org/adaptive}
 }
 ```
 
@@ -597,4 +597,4 @@ If you use CodeViz3D in your research or projects, please cite:
 
 **Built with ❤️ for the developer community**
 
-For questions, support, or contributions, please visit our [GitHub repository](https://github.com/your-org/codeviz3d) or join our [Discord community](https://discord.gg/codeviz3d).
+For questions, support, or contributions, please visit our [GitHub repository](https://github.com/your-org/adaptive) or join our [Discord community](https://discord.gg/adaptive).
