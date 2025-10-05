@@ -4,8 +4,8 @@ require('dotenv').config();
 
 const CLASSIFY_PROMPT = `
 Return ONLY a single JSON object matching this exact schema:
-{"type": "frontend"|"backend"|"database"}
-Most specific wins: database>backend>frontend. Use path+content. No extra text.
+{"type": "frontend"|"database"}
+Most specific wins: backend>frontend. Use path+content. No extra text.
 Respond with VALID JSON only, no code fences, no explanation.
 `
 
@@ -35,8 +35,8 @@ Respond with VALID JSON only.
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_KEY);
 
-const MODEL_NAME = process.env.GEMINI_MODEL || "gemma-3-1b-it"; // configurable
-const MAX_CONTENT_CHARS = parseInt(process.env.GEMINI_MAX_CHARS || '20000', 10);
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemma-3-27b-it"; // configurable
+const MAX_CONTENT_CHARS = parseInt(process.env.GEMINI_MAX_CHARS || '2000000000000', 10);
 const MAX_RETRIES = parseInt(process.env.GEMINI_MAX_RETRIES || '2', 10);
 const RETRY_DELAY_MS = parseInt(process.env.GEMINI_RETRY_DELAY_MS || '500', 10);
 
