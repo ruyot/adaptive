@@ -15,7 +15,7 @@ const processGitHubRepo = async () => {
         });
 
         const data = response.data;
-        console.log(data);
+        // console.log(data);
 
         // Process each object in the tree
         for (const obj of data.tree) {
@@ -26,12 +26,14 @@ const processGitHubRepo = async () => {
             const path = obj.path;
             const lastDotIndex = path.lastIndexOf(".");
             const ext = lastDotIndex !== -1 ? path.substring(lastDotIndex) : "";
-            if (path[0] == "." || ext == "") continue;
-            console.log(path, ext);
-
+            if (path[0] == "." || ext == "") {
+                console.log("skipped: \t", path);
+                continue;
+            }
             // Check if file extension is in the allowed set
             const notAllowedExtensions = new Set([".yaml", ".md", ".json"]);
             if (notAllowedExtensions.has(ext)) {
+                console.log("skipped: \t", path);
                 continue;
             }
 
@@ -52,13 +54,14 @@ const processGitHubRepo = async () => {
                     "utf-8"
                 );
             } catch (error) {
+                console.log("skipped: \t", path);
                 continue;
             }
 
             // Process with gemini
+            console.log("processing: ", path);
             const result = await gemini.classifyRepo(strContent, path);
             console.log(result);
-            return result;
         }
     } catch (error) {
         console.error("Error processing repository:", error.message);
