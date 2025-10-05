@@ -59,7 +59,7 @@ const processGitHubRepo = async () => {
             );
 
             // Process with gemini
-            const result = await gemini.gemini(strContent, path);
+            const result = await gemini.classifyRepo(strContent, path);
             console.log(result);
         }
     } catch (error) {
@@ -70,7 +70,7 @@ const processGitHubRepo = async () => {
 
 const processFileContent = async (fileContent, path) => {
     try {
-        const result = await gemini.gemini(fileContent, path);
+        const result = await gemini.analyzeFile(fileContent, path);
         console.log(result);
         return result;
     } catch (error) {

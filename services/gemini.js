@@ -2,7 +2,37 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
-const SYSTEM_PROMPT =`
+const CLASSIFY_PROMPT =`
+You are a strict file classifier.
+
+Goal:
+Given a single file path and its full content, output a JSON object with:
+{
+  "type": "frontend" | "backend" | "database"
+}
+
+Categories:
+- "frontend": UI pages/views, components, styling, client routing.
+  Signals: React/Vue/Svelte/Angular; .tsx/.jsx/.vue; folders pages/, components/, app/, public/; CSS/SCSS/Tailwind.
+- "backend": APIs, controllers, services, business logic, background jobs.
+  Signals: Express/FastAPI/Django/Spring; route/handler defs; controllers/, services/, jobs/.
+- "database": DB schemas/migrations, ORM models, queries, ETL, seeds.
+  Signals: Prisma/TypeORM/Sequelize/Mongoose; migrations/, models/; SQL; data pipelines.
+
+Rules:
+- Return ONLY the JSON object (no prose, no code fences).
+- Choose the most specific category if overlaps:
+  database > backend > frontend.
+- Base the decision on BOTH path and content.
+- Never add fields other than "type".
+
+Input format you receive:
+Path: <full/path/to/file>
+Content:
+<entire file content here>
+`
+
+const ANALYZE_PROMPT =`
 You are a strict file classifier and summarizer.
 
 Goal:
@@ -47,13 +77,12 @@ Content:
 <entire file content here>
 `
 
-
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_KEY);
 
 const MODEL_NAME = "gemma-3-12b-it"; // Note: gemma-3-12b-it may not be available, using gemini-1.5-flash
 
-async function gemini(fileContent, path) {
+async function classifyRepo(fileContent, path) {
   try {
     // Get the generative model
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -63,7 +92,7 @@ async function gemini(fileContent, path) {
       history: [
         {
           role: "user",
-          parts: [{ text: SYSTEM_PROMPT }],
+          parts: [{ text: CLASSIFY_PROMPT }],
         },
       ],
     });
@@ -89,4 +118,40 @@ async function gemini(fileContent, path) {
   }
 }
 
-module.exports = { gemini };
+async function analyzeFile(fileContent, path) {
+    try {
+      // Get the generative model
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  
+      // Create the chat with system prompt as first message
+      const chat = model.startChat({
+        history: [
+          {
+            role: "user",
+            parts: [{ text: ANALYZE_PROMPT }],
+          },
+        ],
+      });
+  
+      // Send the user message with path and content
+      const userMessage = `path: ${path}\ncontent: ${fileContent}`;
+      
+      const result = await chat.sendMessage(userMessage);
+      const response = result.response.text();
+  
+      // Validate and parse JSON response
+      if (!response.startsWith("```json")) {
+        throw new Error('Response does not start with ```json');
+      }
+  
+      // Extract JSON from markdown code block
+      const jsonStr = response.slice(8, -4); // Remove ```json and ```
+      return JSON.parse(jsonStr);
+  
+    } catch (error) {
+      console.error('Error in gemini function:', error.message);
+      throw error;
+    }
+  }
+  
+  module.exports = { analyzeFile, classifyRepo };
