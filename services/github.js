@@ -26,19 +26,12 @@ const processGitHubRepo = async () => {
             const path = obj.path;
             const lastDotIndex = path.lastIndexOf(".");
             const ext = lastDotIndex !== -1 ? path.substring(lastDotIndex) : "";
-
+            if (path[0] == "." || ext == "") continue;
             console.log(path, ext);
 
             // Check if file extension is in the allowed set
-            const allowedExtensions = new Set([
-                ".py",
-                ".ts",
-                ".tsx",
-                ".jsx",
-                ".md",
-                ".js",
-            ]);
-            if (!allowedExtensions.has(ext)) {
+            const notAllowedExtensions = new Set([".yaml", ".md", ".json"]);
+            if (notAllowedExtensions.has(ext)) {
                 continue;
             }
 
@@ -54,13 +47,18 @@ const processGitHubRepo = async () => {
             const fileContent = fileResponse.data.content;
 
             // Decode base64 content
-            const strContent = Buffer.from(fileContent, "base64").toString(
-                "utf-8"
-            );
+            try {
+                strContent = Buffer.from(fileContent, "base64").toString(
+                    "utf-8"
+                );
+            } catch (error) {
+                continue;
+            }
 
             // Process with gemini
             const result = await gemini.classifyRepo(strContent, path);
             console.log(result);
+            return result;
         }
     } catch (error) {
         console.error("Error processing repository:", error.message);

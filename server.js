@@ -21,10 +21,11 @@ app.get("/healthtest", (req, res) => {
 
 app.get("/process-repo", async (req, res) => {
     try {
-        await services.processGitHubRepo();
+        const resolution = await services.processGitHubRepo();
         res.json({
             success: true,
             message: "Repository processed successfully",
+            ...resolution
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -40,7 +41,7 @@ app.get("/process-file", async (req, res) => {
         res.json({
             success: true,
             message: "Returned file summary successfully",
-            summary: resolution
+            ...resolution
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

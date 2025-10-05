@@ -3,59 +3,25 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const CLASSIFY_PROMPT =`
-You are a strict file classifier.
-
-Goal:
-Given a single file path and its full content, output a JSON object with:
-{
-  "type": "frontend" | "backend" | "database"
-}
-
-Categories:
-- "frontend": UI pages/views, components, styling, client routing.
-  Signals: React/Vue/Svelte/Angular; .tsx/.jsx/.vue; folders pages/, components/, app/, public/; CSS/SCSS/Tailwind.
-- "backend": APIs, controllers, services, business logic, background jobs.
-  Signals: Express/FastAPI/Django/Spring; route/handler defs; controllers/, services/, jobs/.
-- "database": DB schemas/migrations, ORM models, queries, ETL, seeds.
-  Signals: Prisma/TypeORM/Sequelize/Mongoose; migrations/, models/; SQL; data pipelines.
-
-Rules:
-- Return ONLY the JSON object (no prose, no code fences).
-- Choose the most specific category if overlaps:
-  database > backend > frontend.
-- Base the decision on BOTH path and content.
-- Never add fields other than "type".
-
-Input format you receive:
-Path: <full/path/to/file>
-Content:
-<entire file content here>
+Return ONLY: {"type": ("frontend"|"backend"|"database")}
+Most specific wins: database>backend>frontend. Use path+content. No extra text.
+Regex: ^\\s*\\{\\s*"type"\\s*:\\s*"(frontend|backend|database)"\\s*\\}\\s*$
 `
 
-const ANALYZE_PROMPT =`
-You are a strict file classifier and summarizer.
+const ANALYZE_PROMPT = `
+You are a strict file summarizer.
 
 Goal:
 Given a single file path and its full content, output a JSON object with:
+\`\`\`json
 {
-  "type": "frontend" | "backend" | "database",
   "summary": "<detailed plain-English summary of the file>",
   "functions": { "<functionName>": "<short description>", ... }
 }
-
-Categories:
-- "frontend": UI pages/views, components, styling, client routing.
-  Signals: React/Vue/Svelte/Angular; .tsx/.jsx/.vue; folders pages/, components/, app/, public/; CSS/SCSS/Tailwind.
-- "backend": APIs, controllers, services, business logic, background jobs.
-  Signals: Express/FastAPI/Django/Spring; route/handler defs; controllers/, services/, jobs/.
-- "database": DB schemas/migrations, ORM models, queries, ETL, seeds.
-  Signals: Prisma/TypeORM/Sequelize/Mongoose; migrations/, models/; SQL; data pipelines.
+\`\`\`
 
 Rules:
 - Return ONLY the JSON object (no prose, no code fences).
-- Choose the most specific category if overlaps:
-  database > backend > frontend.
-- Base the decision on BOTH path and content.
 - "summary": 1–3 sentences; clear and specific.
 - "functions": map each defined function to a short description (≤15 words).
   Include:
@@ -68,14 +34,15 @@ Rules:
     • Anonymous callbacks without a stable name
     • Imported functions (declarations not in this file)
 - If no functions exist, set "functions": {}.
-- If minimal stubs only, still classify and summarize.
-- Never add fields other than "type", "summary", "functions".
+- If minimal stubs only, still summarize.
+- Never add fields other than "summary" and "functions".
 
-Input format you receive:s
+Input format you receive:
 Path: <full/path/to/file>
 Content:
 <entire file content here>
 `
+
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_KEY);
@@ -104,6 +71,7 @@ async function classifyRepo(fileContent, path) {
     const response = result.response.text();
 
     // Validate and parse JSON response
+    console.log(response);
     if (!response.startsWith("```json")) {
       throw new Error('Response does not start with ```json');
     }
