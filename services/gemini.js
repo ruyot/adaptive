@@ -47,7 +47,7 @@ Content:
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_KEY);
 
-const MODEL_NAME = "gemma-3-12b-it"; // Note: gemma-3-12b-it may not be available, using gemini-1.5-flash
+const MODEL_NAME = "gemma-3-4b-it"; // Note: gemma-3-12b-it may not be available, using gemini-1.5-flash
 
 async function classifyRepo(fileContent, path) {
   try {
