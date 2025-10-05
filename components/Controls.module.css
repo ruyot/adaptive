@@ -1,0 +1,37 @@
+.fab {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(17, 17, 23, 0.85);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  transition: transform 0.18s ease, opacity 0.2s ease;
+  backdrop-filter: blur(8px);
+  --fab-transform: translate3d(0, 0, 0);
+  transform: var(--fab-transform);
+}
+
+.fab:hover,
+.fab:focus-visible {
+  transform: var(--fab-transform) scale(1.05);
+}
+
+.fab:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .fab {
+    left: 50%;
+    --fab-transform: translateX(-50%);
+  }
+}
