@@ -51,7 +51,7 @@ Content:
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_KEY);
 
-const MODEL_NAME = "gemini-1.5-flash"; // Note: gemma-3-12b-it may not be available, using gemini-1.5-flash
+const MODEL_NAME = "gemma-3-12b-it"; // Note: gemma-3-12b-it may not be available, using gemini-1.5-flash
 
 async function gemini(fileContent, path) {
   try {
@@ -62,7 +62,7 @@ async function gemini(fileContent, path) {
     const chat = model.startChat({
       history: [
         {
-          role: "model",
+          role: "user",
           parts: [{ text: SYSTEM_PROMPT }],
         },
       ],
