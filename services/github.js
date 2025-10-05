@@ -9,9 +9,7 @@ const processGitHubRepo = async () => {
     try {
         // Get the repository tree
         const response = await axios.get(testLink, {
-            headers: {
-                Authorization: `token ${process.env.GITHUB_TOKEN}`,
-            },
+           
         });
 
         const data = response.data;
