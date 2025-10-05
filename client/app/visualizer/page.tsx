@@ -7,6 +7,7 @@ import { ExplanationPanel } from "@/components/explanation-panel"
 import { CodebaseStack } from "@/components/codebase-stack"
 import { LoadingAnimation } from "@/components/loading-animation"
 import { Home } from "lucide-react"
+import { fetchRepoData as fetchRepoDataAPI, analyzeFile as analyzeFileAPI } from "@/lib/api"
 
 // Parse GitHub URL to extract owner, repo, and branch
 function parseGitHubUrl(url: string): { owner: string; repo: string; branch: string } | null {
@@ -189,7 +190,7 @@ function CodebaseVisualizerContent() {
     router.push('/')
   }
 
-  const fetchRepoData = async () => {
+  const loadRepository = async () => {
     if (!repoUrl) {
       setError('No repository URL provided')
       return
@@ -210,18 +211,9 @@ function CodebaseVisualizerContent() {
       // Store the GitHub URL for linking to files
       setGithubRepoUrl(`https://github.com/${owner}/${repo}`)
       
-      const response = await fetch(
-        `http://localhost:3002/process-repo?owner=${owner}&repo=${repo}&branch=${branch}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      )
-      const result = await response.json()
+      const result = await fetchRepoDataAPI(owner, repo, branch)
       
-      if (response.ok && result.all) {
+      if (result.all) {
         console.log('API Response:', result)
         const { sections: processedSections, explanations: processedExplanations, fileContents: processedContents } = processRepoData(result.all)
         console.log('Processed sections:', processedSections)
@@ -229,12 +221,11 @@ function CodebaseVisualizerContent() {
         setExplanations(processedExplanations)
         setFileContents(processedContents)
       } else {
-        console.error('API Error:', result)
         setError(result.error || 'Failed to process repository')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching repo data:', error)
-      setError('Failed to connect to backend. Make sure the server is running.')
+      setError(error.message || 'Failed to connect to backend. Make sure the server is running.')
     } finally {
       setLoading(false)
     }
@@ -243,7 +234,7 @@ function CodebaseVisualizerContent() {
   // Auto-fetch repo data when URL is present
   useEffect(() => {
     if (repoUrl) {
-      fetchRepoData()
+      loadRepository()
     }
   }, [repoUrl])
 
@@ -281,34 +272,18 @@ function CodebaseVisualizerContent() {
       // Get the actual file content from our stored contents
       const actualContent = selectedFile ? fileContents[selectedFile] || content : content
       
-      const response = await fetch('http://localhost:3002/process-file', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          path: path,
-          content: actualContent
-        })
-      })
+      const result = await analyzeFileAPI(path, actualContent)
       
-      const result = await response.json()
-      
-      if (response.ok) {
-        console.log('File analysis result:', result)
-        // Store the analysis result for the current file
-        if (selectedFile) {
-          setAnalysisResults(prev => ({
-            ...prev,
-            [selectedFile]: result.data
-          }))
-        }
-        return result.data
-      } else {
-        console.error('Analysis failed:', result)
-        throw new Error(result.error || 'Analysis failed')
+      console.log('File analysis result:', result)
+      // Store the analysis result for the current file
+      if (selectedFile) {
+        setAnalysisResults(prev => ({
+          ...prev,
+          [selectedFile]: result.data
+        }))
       }
-    } catch (error) {
+      return result.data
+    } catch (error: any) {
       console.error('Error analyzing file:', error)
       throw error
     }
@@ -344,7 +319,7 @@ function CodebaseVisualizerContent() {
         <div className="flex flex-col items-center space-y-4">
           <div className="text-white text-xl">No repository data available</div>
           <button 
-            onClick={fetchRepoData}
+            onClick={loadRepository}
             className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
           >
             Fetch Repository Data
