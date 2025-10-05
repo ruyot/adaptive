@@ -11,8 +11,9 @@ export function HeroCard() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (githubUrl.trim()) {
-      // Navigate to visualizer page
-      router.push("/visualizer")
+      // Navigate to visualizer page with GitHub URL as query parameter
+      const encodedUrl = encodeURIComponent(githubUrl.trim())
+      router.push(`/visualizer?repo=${encodedUrl}`)
     }
   }
 

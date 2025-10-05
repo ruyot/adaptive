@@ -1,7 +1,16 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
 const PORT = 3002;
 const services = require("./services/github");
+
+// Enable CORS for all origins in development
+app.use(cors({
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(express.json());
 
@@ -21,7 +30,17 @@ app.get("/healthtest", (req, res) => {
 
 app.get("/process-repo", async (req, res) => {
     try {
-        const resolution = await services.processGitHubRepo();
+        const { owner, repo, branch } = req.query;
+        
+        // Validate required parameters
+        if (!owner || !repo) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "Missing required parameters: owner and repo" 
+            });
+        }
+        
+        const resolution = await services.processGitHubRepo(owner, repo, branch || 'main');
         res.json({
             success: true,
             message: "Repository processed successfully",
@@ -32,16 +51,23 @@ app.get("/process-repo", async (req, res) => {
     }
 });
 
-app.get("/process-file", async (req, res) => {
+app.post("/process-file", async (req, res) => {
     try {
-        const body = await req.body;
+        const { content, path } = req.body;
+        
+        if (!path) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "Missing required parameter: path" 
+            });
+        }
 
-        const resolution = await services.processFileContent(body["content"], body["path"]);
+        const resolution = await services.processFileContent(content || "", path);
 
         res.json({
             success: true,
             message: "Returned file summary successfully",
-            ...resolution
+            data: resolution
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

@@ -80,13 +80,15 @@ const SKIP_EXT = new Set([
 
 const SKIP_FILES = ["docker-compose.yml", "docker-compose.yaml", "Dockerfile"];
 
-const processGitHubRepo = async () => {
-    const testLink =
-        "https://api.github.com/repos/taseskics/devconnect/git/trees/main?recursive=1";
+const processGitHubRepo = async (owner, repo, branch = 'main') => {
+    // Construct GitHub API URL dynamically
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+    
+    console.log(`Processing repository: ${owner}/${repo} (branch: ${branch})`);
 
     try {
         // Get the repository tree
-        const response = await axios.get(testLink, {
+        const response = await axios.get(apiUrl, {
             headers: {
                 Authorization: `token ${process.env.GITHUB_TOKEN}`,
             },
@@ -166,12 +168,25 @@ const processGitHubRepo = async () => {
                 type: c.type,
                 lines: strContent.split("\n").slice(0, 10).join("\n"),
                 path: path,
+                content: strContent, // Store full content for AI analysis
                 // ...c
             });
         }
         return { all: responseBody };
     } catch (error) {
         console.error("Error processing repository:", error.message);
+        
+        // Provide helpful error messages
+        if (error.response) {
+            if (error.response.status === 404) {
+                throw new Error(`Repository not found: ${owner}/${repo}. Check if the repository exists and is public, or if the branch '${branch}' exists. Try 'master' instead of 'main'.`);
+            } else if (error.response.status === 401) {
+                throw new Error('GitHub authentication failed. Check your GITHUB_TOKEN in .env file.');
+            } else if (error.response.status === 403) {
+                throw new Error('GitHub API rate limit exceeded or access forbidden. Wait a few minutes or check your token permissions.');
+            }
+        }
+        
         throw error;
     }
 };
