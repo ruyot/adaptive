@@ -2,6 +2,83 @@ const axios = require("axios");
 require("dotenv").config();
 const gemini = require("./gemini");
 const { classifyAny } = require("./multiclassifier");
+// Check if file extension is in the allowed set
+const allowedExtensions = new Set([
+    // code & config we care about
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".mjs",
+    ".cjs",
+    ".py",
+    ".java",
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".cs",
+    ".go",
+    ".rs",
+    ".php",
+    ".rb",
+    ".swift",
+    ".kt",
+    ".kts",
+    ".m",
+    ".mm",
+    ".scala",
+    ".dart",
+    ".pl",
+    ".pm",
+    ".r",
+    ".jl",
+    ".lua",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".html",
+    ".htm",
+    ".css",
+    ".scss",
+    ".sass",
+    ".less",
+    ".json",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".env",
+    // database formats (special-cased below)
+    ".sql",
+    ".prisma",
+    ".dbml",
+    ".ddl",
+    ".dump",
+]);
+
+// STRICT database formats only (anything here => classified "database")
+const databaseExtensions = new Set([
+    ".sql", // raw SQL (schema, migrations, seeds)
+    ".prisma", // Prisma schema
+    ".dbml", // DBML schema files
+    ".ddl", // explicit DDL exports
+    ".dump", // SQL dumps (careful—can be big)
+    // add ".sqlite" only if you want to treat actual db files as "database" (usually skip binaries)
+]);
+const SKIP_EXT = new Set([
+    ".config.js", // webpack.config.js, next.config.js, etc.
+    ".config.cjs",
+    ".config.mjs",
+    ".config.ts",
+]);
+
+const SKIP_FILES = ["docker-compose.yml", "docker-compose.yaml", "Dockerfile"];
 
 const processGitHubRepo = async () => {
     const testLink =
@@ -28,79 +105,12 @@ const processGitHubRepo = async () => {
             const path = obj.path;
             const lastDotIndex = path.lastIndexOf(".");
             const ext = lastDotIndex !== -1 ? path.substring(lastDotIndex) : "";
+            const lower = path.toLowerCase();
+            
             if (path[0] == "." || ext == "") {
                 console.log("skipped: \t", path);
                 continue;
             }
-            // Check if file extension is in the allowed set
-            const allowedExtensions = new Set([
-                // code & config we care about
-                ".js",
-                ".jsx",
-                ".ts",
-                ".tsx",
-                ".mjs",
-                ".cjs",
-                ".py",
-                ".java",
-                ".c",
-                ".cc",
-                ".cpp",
-                ".cxx",
-                ".h",
-                ".hh",
-                ".hpp",
-                ".hxx",
-                ".cs",
-                ".go",
-                ".rs",
-                ".php",
-                ".rb",
-                ".swift",
-                ".kt",
-                ".kts",
-                ".m",
-                ".mm",
-                ".scala",
-                ".dart",
-                ".pl",
-                ".pm",
-                ".r",
-                ".jl",
-                ".lua",
-                ".sh",
-                ".bash",
-                ".zsh",
-                ".html",
-                ".htm",
-                ".css",
-                ".scss",
-                ".sass",
-                ".less",
-                ".json",
-                ".yml",
-                ".yaml",
-                ".toml",
-                ".ini",
-                ".cfg",
-                ".env",
-                // database formats (special-cased below)
-                ".sql",
-                ".prisma",
-                ".dbml",
-                ".ddl",
-                ".dump",
-            ]);
-
-            // STRICT database formats only (anything here => classified "database")
-            const databaseExtensions = new Set([
-                ".sql", // raw SQL (schema, migrations, seeds)
-                ".prisma", // Prisma schema
-                ".dbml", // DBML schema files
-                ".ddl", // explicit DDL exports
-                ".dump", // SQL dumps (careful—can be big)
-                // add ".sqlite" only if you want to treat actual db files as "database" (usually skip binaries)
-            ]);
 
             if (!allowedExtensions.has(ext)) {
                 console.log("skipped: \t", path);
@@ -109,6 +119,14 @@ const processGitHubRepo = async () => {
 
             if (databaseExtensions.has(ext)) {
                 responseBody.push({ type: "database", path: path });
+                continue;
+            }
+
+            if (
+                SKIP_FILES.some((f) => lower.endsWith(f)) ||
+                [...SKIP_EXT].some((ext) => lower.endsWith(ext))
+            ) {
+                console.log("skipped infra:\t", path);
                 continue;
             }
 
