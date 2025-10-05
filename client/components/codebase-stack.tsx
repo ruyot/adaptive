@@ -57,7 +57,7 @@ function StackLayer({ position, color, label, section, onClick, isSelected }: St
         />
       </RoundedBox>
 
-      <Html position={[0, 0.8, 0]} center distanceFactor={8}>
+      <Html position={[0, 0.8, 0]} center distanceFactor={8} zIndexRange={[0, 0]}>
         <div className="pointer-events-none flex flex-col items-center">
           {/* Connecting stem */}
           <div
