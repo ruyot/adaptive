@@ -78,12 +78,18 @@ const SKIP_EXT = new Set([
     ".config.ts",
 ]);
 
-const SKIP_FILES = ["docker-compose.yml", "docker-compose.yaml", "Dockerfile"];
+const SKIP_FILES = [
+    "docker-compose.yml",
+    "docker-compose.yaml",
+    "Dockerfile",
+    "package-lock.json",
+];
+const SKIP_DIRS = ["node_modules/"];
 
-const processGitHubRepo = async (owner, repo, branch = 'main') => {
+const processGitHubRepo = async (owner, repo, branch = "main") => {
     // Construct GitHub API URL dynamically
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-    
+
     console.log(`Processing repository: ${owner}/${repo} (branch: ${branch})`);
 
     try {
@@ -99,6 +105,7 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
 
         let responseBody = [];
         // Process each object in the tree
+        let words = 0;
         for (const obj of data.tree) {
             if (obj.type === "tree") {
                 continue;
@@ -108,14 +115,14 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
             const lastDotIndex = path.lastIndexOf(".");
             const ext = lastDotIndex !== -1 ? path.substring(lastDotIndex) : "";
             const lower = path.toLowerCase();
-            
+
             if (path[0] == "." || ext == "") {
-                console.log("skipped: \t", path);
+                // console.log("skipped: \t", path);
                 continue;
             }
 
             if (!allowedExtensions.has(ext)) {
-                console.log("skipped: \t", path);
+                // console.log("skipped: \t", path);
                 continue;
             }
 
@@ -128,7 +135,12 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
                 SKIP_FILES.some((f) => lower.endsWith(f)) ||
                 [...SKIP_EXT].some((ext) => lower.endsWith(ext))
             ) {
-                console.log("skipped infra:\t", path);
+                // console.log("skipped infra:\t", path);
+                continue;
+            }
+
+            if (SKIP_DIRS.some((dir) => path.includes(dir))) {
+                // console.log("Skipped directory: ", path);
                 continue;
             }
 
@@ -148,19 +160,20 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
                 strContent = Buffer.from(fileContent, "base64").toString(
                     "utf-8"
                 );
+                words += strContent.split(" ").length;
             } catch (error) {
                 console.log("skipped: \t", path);
                 continue;
             }
 
             // Process with gemini
-            console.log("processing: ", path);
             const c = classifyAny(path, strContent);
             let type;
             if (c.confidence >= 0.6) {
-                console.log("classifier");
+                console.log("Classifier process: ", path);
                 type = c.type;
             } else {
+                console.log("AI process: ", path);
                 const result = await gemini.classifyRepo(strContent, path);
                 type = result.type;
             }
@@ -172,21 +185,28 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
                 // ...c
             });
         }
+        console.log("Words: ", words);
         return { all: responseBody };
     } catch (error) {
         console.error("Error processing repository:", error.message);
-        
+
         // Provide helpful error messages
         if (error.response) {
             if (error.response.status === 404) {
-                throw new Error(`Repository not found: ${owner}/${repo}. Check if the repository exists and is public, or if the branch '${branch}' exists. Try 'master' instead of 'main'.`);
+                throw new Error(
+                    `Repository not found: ${owner}/${repo}. Check if the repository exists and is public, or if the branch '${branch}' exists. Try 'master' instead of 'main'.`
+                );
             } else if (error.response.status === 401) {
-                throw new Error('GitHub authentication failed. Check your GITHUB_TOKEN in .env file.');
+                throw new Error(
+                    "GitHub authentication failed. Check your GITHUB_TOKEN in .env file."
+                );
             } else if (error.response.status === 403) {
-                throw new Error('GitHub API rate limit exceeded or access forbidden. Wait a few minutes or check your token permissions.');
+                throw new Error(
+                    "GitHub API rate limit exceeded or access forbidden. Wait a few minutes or check your token permissions."
+                );
             }
         }
-        
+
         throw error;
     }
 };
