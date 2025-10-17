@@ -3,6 +3,10 @@ const cors = require("cors");
 const app = express();
 const PORT = 3002;
 const services = require("./services/github");
+const { init } = require("./services/db");
+
+// Initialize database on startup
+init().catch(console.error);
 
 // Enable CORS for all origins in development
 app.use(cors({

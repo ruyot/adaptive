@@ -1,7 +1,9 @@
 const axios = require("axios");
 require("dotenv").config();
+const crypto = require('crypto');
 const gemini = require("./gemini");
 const { classifyAny } = require("./multiclassifier");
+const { pool } = require('./db');
 // Check if file extension is in the allowed set
 const allowedExtensions = new Set([
     // code & config we care about
@@ -80,11 +82,45 @@ const SKIP_EXT = new Set([
 
 const SKIP_FILES = ["docker-compose.yml", "docker-compose.yaml", "Dockerfile"];
 
+const getLatestCommitSha = async (owner, repo, branch = 'main') => {
+    const refUrl = `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`;
+    const refRes = await axios.get(refUrl, {
+        headers: { Authorization: `token ${process.env.GITHUB_TOKEN}` },
+    });
+    return refRes.data.object.sha;
+};
+
 const processGitHubRepo = async (owner, repo, branch = 'main') => {
+    
+    // Get latest commit SHA
+    const latestSha = await getLatestCommitSha(owner, repo, branch);
+    console.log(`Latest commit SHA: ${latestSha}`);
+    
+    // Check if we already have analysis for this commit
+    const existing = await pool.query(
+        'SELECT analysis, analyzed_at FROM repository_analyses WHERE owner=$1 AND repo=$2 AND branch=$3 AND commit_sha=$4 LIMIT 1',
+        [owner, repo, branch, latestSha]
+    );
+    
+    if (existing.rows.length > 0) {
+        console.log(`Cache hit for ${owner}/${repo}@${latestSha}`);
+        return {
+            ...existing.rows[0].analysis,
+            meta: {
+                owner,
+                repo,
+                branch,
+                commit_sha: latestSha,
+                analyzed_at: existing.rows[0].analyzed_at,
+                freshness: 'up_to_date'
+            }
+        };
+    }
+    
+    console.log(`Cache miss for ${owner}/${repo}@${latestSha}, analyzing...`);
+    
     // Construct GitHub API URL dynamically
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-    
-    console.log(`Processing repository: ${owner}/${repo} (branch: ${branch})`);
 
     try {
         // Get the repository tree
@@ -172,7 +208,17 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
                 // ...c
             });
         }
-        return { all: responseBody };
+        const analysisResult = { all: responseBody };
+        
+        // Store the complete analysis in database
+        await pool.query(
+            'INSERT INTO repository_analyses (owner, repo, branch, commit_sha, analysis) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (owner, repo, branch, commit_sha) DO UPDATE SET analysis = $5, analyzed_at = NOW()',
+            [owner, repo, branch, latestSha, JSON.stringify(analysisResult)]
+        );
+        
+        return {
+            ...analysisResult,
+        };
     } catch (error) {
         console.error("Error processing repository:", error.message);
         
@@ -192,12 +238,36 @@ const processGitHubRepo = async (owner, repo, branch = 'main') => {
 };
 
 const processFileContent = async (fileContent, path) => {
+    
     try {
+        // Compute content hash for caching
+        const contentHash = crypto.createHash('sha256').update(fileContent).digest('hex');
+        
+        // Check if we already have analysis for this file content
+        const existing = await pool.query(
+            'SELECT ai_analysis FROM file_analyses WHERE path=$1 AND content_hash=$2 LIMIT 1',
+            [path, contentHash]
+        );
+        
+        if (existing.rows.length > 0) {
+            console.log(`Cache hit for file analysis: ${path}`);
+            return existing.rows[0].ai_analysis;
+        }
+        
+        console.log(`Cache miss for file analysis: ${path}, analyzing...`);
+        
+        // Run AI analysis
         const result = await gemini.analyzeFile(fileContent, path);
-        console.log(result);
+        
+        // Store analysis for future use
+        await pool.query(
+            'INSERT INTO file_analyses (repo_owner, repo_name, branch, commit_sha, path, content_hash, preview, ai_analysis) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (repo_owner, repo_name, branch, path, content_hash) DO UPDATE SET ai_analysis = $8',
+            ['unknown', 'unknown', 'main', 'unknown', path, contentHash, fileContent.substring(0, 500), result]
+        );
+        
         return result;
     } catch (error) {
-        console.error("Error getting summary:", error.message);
+        console.error("Error analyzing file:", error.message);
         throw error;
     }
 };
